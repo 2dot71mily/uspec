@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import openai
 import os
+from openai import OpenAI
 
 # %%
 from transformers import pipeline
@@ -34,6 +35,7 @@ from config import (
     MGT_TARGET_TEXT,
     MODELS_PARAMS,
     CONDITIONAL_GEN_MODELS,
+    CHATCOMPLETION_API,
     convert_to_file_save_name,
 )
 
@@ -44,7 +46,6 @@ if DEVICE.type == "cuda":
 
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
-openai.api_key = OPENAI_API_KEY
 # %%
 
 DECIMAL_PLACES = 1
@@ -64,7 +65,6 @@ def load_bert_like_model(model_name):
     )
     tokenizer = model.tokenizer
     return model, tokenizer
-
 
 
 # %%
@@ -101,17 +101,23 @@ def load_model_and_tokenizer(model_name):
 
 # %%
 def query_openai(prompt, model_name):
-    return openai.Completion.create(
+
+    client = OpenAI(api_key=OPENAI_API_KEY)
+
+    return client.chat.completions.create(
         model=model_name,
-        prompt=prompt,
+        messages=[{"role": "user", "content": prompt}],
         temperature=0,
         max_tokens=GPT_NUM_TOKS,
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0,
-        logprobs=5,
+        logprobs=True,
+        top_logprobs=5,
     )
 
+
+# %%
 
 def prepare_text_for_masking(input_text, mask_token, gendered_tokens, split_key):
     text_w_masks_list = [
@@ -182,9 +188,11 @@ def get_accum_prob_from_hf_pipeline_outputs(model_response, gendered_tokens, num
     pronoun_preds = [
         sum(
             [
-                pronoun["score"]
-                if pronoun["token_str"].strip().lower() in gendered_tokens
-                else 0.0
+                (
+                    pronoun["score"]
+                    if pronoun["token_str"].strip().lower() in gendered_tokens
+                    else 0.0
+                )
                 for pronoun in top_preds
             ]
         )
@@ -203,6 +211,13 @@ def convert_hf_scores_to_oai_like_scores_format(predictions, tokenizer):
                 for i in range(len(p[0]))
             }
         )
+    return ret
+
+
+def convert_oaichat_scores_to_oai_like_scores_format(predictions):
+    ret = []
+    for p in predictions.content:
+        ret.append({t.token: t.logprob for t in p.top_logprobs})
     return ret
 
 
@@ -296,10 +311,17 @@ def predict_gender_pronouns(
         if OPENAI:
             model_response = query_openai(target_text, model)
             print(f"Running OpenAI inference on {model_name}")
-            predictions = model_response.choices[0].logprobs.top_logprobs
             all_gendered_tokens = (
                 list(FEMALE_LIST) + list(MALE_LIST) + list(NEUTRAL_LIST)
             )
+            if CHATCOMPLETION_API:
+                predictions = model_response.choices[0].logprobs
+                predictions = convert_oaichat_scores_to_oai_like_scores_format(
+                    predictions
+                )
+            else:
+                predictions = model_response.choices[0].logprobs.top_logprobs
+
             #  If only one pronoun in greedy response, use just that idx
             pronoun_idx = get_idx_for_predicted_pronoun(
                 predictions, all_gendered_tokens

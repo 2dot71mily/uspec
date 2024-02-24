@@ -86,7 +86,7 @@ def get_df_per_model_from_all_files_in_dir(
     stats_model_results = {model: defaultdict() for model in MODELS_PARAMS}
 
     for f in files:
-        prog = re.compile(r".*(.)p_wikibio_([\w-]+)_(date)_+(\w+)_(\w+)_([01])_([\w]+)")
+        prog = re.compile(r".*(.)p_wikibio_([\.\w-]+)_(date)_+(\w+)_(\w+)_([01])_([\w]+)")
         m = prog.match(f.stem)
         try:
             (
@@ -191,7 +191,7 @@ def get_wino_results_uncertainty(path, model_results, bls_pct_female_sorted_dict
                 print(f"Nothing to concat: {model}, {particip}.")
             continue
 
-    detail_filters = "f_0", "f_1", "m_0", "m_1"
+    detail_filters = "f_0", "f_1", "n_0", "n_1", "m_0", "m_1"
 
     wino_results_uncertainty = {model: dict() for model in wino_results.keys()}
 
@@ -317,11 +317,11 @@ def plot_all_winogender_occs(
     occ_detail="doctor",
 ):
     if not WINO_G_ID:
-        VERSIONS = {"f_0": "Professional", "f_1": "Participant"}
+        VERSIONS = {("f_0", "n_0"): "Professional", ("f_1", "n_1"): "Participant"}
         legend_prefix = "Participant is "
         style = "Coreference"
     else:
-        VERSIONS = {"f_0": "Professional"}
+        VERSIONS = {("f_0", "n_0"): "Professional"}
         legend_prefix = ""
         style = "Pronoun"
 
@@ -336,20 +336,22 @@ def plot_all_winogender_occs(
         for occ in bls_pct_female_sorted_dict.keys():
             j = 0
             for i, particip in enumerate(ALL_PARTS):
-                for version in VERSIONS.keys():
-                    if VERSIONS[version] == "Professional":
+                for versions, template_type in VERSIONS.items():
+                    if template_type == "Professional":
                         colors = PROFESSIONAL_COLORS
                     else:
                         colors = PARTICIP_COLORS
 
-                    spec_metric = wino_results_uncertainty[model][occ][particip][
-                        version
-                    ]
+                    spec_metric = 0
+                    for version in versions:  # sum both female and neutral texts
+                        spec_metric += wino_results_uncertainty[model][occ][particip][
+                            version
+                        ]
                     if spec_metric == math.nan or math.isnan(spec_metric):
                         spec_metric = -100.0  # plot off page
 
                     if not WINO_G_ID:
-                        legend_postfix = f". Coref with {VERSIONS[version]}"
+                        legend_postfix = f". Coref with {template_type}"
                     else:
                         legend_postfix = ""
                     if not added_legend_items:
@@ -379,18 +381,19 @@ def plot_all_winogender_occs(
             added_legend_items = True
 
         ax.tick_params(axis="x", labelrotation=90)
-        ax.set_ylim([-10, 60])
+        ax.set_ylim([-0.1, 100]) 
+        ax.set_yscale("symlog")
         ax.margins(x=0.01)
         fig.tight_layout()
         plt.legend(ncol=2, fontsize=16, loc="upper left")
         title = f" {model} Task Specification for {style} Resolution"
-        plt.ylabel("Underspecification Metric")
+        plt.ylabel("Specification Metric")
         plt.title(title)
         model_file_save_name = convert_to_file_save_name(
             MODELS_PARAMS[model]["model_call_name"]
         )
-        filename = f"bls_{model_file_save_name}_{VERSIONS[version]}_winomod{WINO_G_ID}_{intended_instruction_version}"
-        file_path = os.path.join(PLOTS_FULL_PATH, filename)
+        filename = f"bls_{model_file_save_name}_{template_type}_winomod{WINO_G_ID}_{intended_instruction_version}"
+        file_path = os.path.join(PLOTS_FULL_PATH, filename.replace('.', '_'))
         print(f"Plot saved to {file_path}")
         try:
             plt.savefig(file_path, dpi=150)

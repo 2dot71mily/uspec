@@ -10,14 +10,14 @@ from pathlib import Path
 TESTING = False  # Set to True if testing on subsets of the challenge sets
     ######################## Select method type ##############################
 METHODS = ["correlation_measurement", "specification_metric"]
-METHOD_IDX = 0  # Select '0' for Method 1, '1' for for Method 2
+METHOD_IDX = 1  # Select '0' for Method 1, '1' for for Method 2
         ############# If `specification_metric` selected ###############
 # Set to `True` if testing with `Simplified` Winogender-gender-identified eval set
-WINO_G_ID = False
+WINO_G_ID = True
 #################################### For inference only #######################################
     ######################### Select inference type ##########################
 INFERENCE_TYPES = ["bert_like", "open_ai", "cond_gen"] # TODO
-INFERENCE_TYPE_IDX = 0
+INFERENCE_TYPE_IDX = 1
 # Select '0' for BERT-like, '1' for `open-ai`, 2 for `UL2-family`
             ############################# Models #######################
 BERT_LIKE_MODELS = [
@@ -28,7 +28,9 @@ BERT_LIKE_MODELS = [
     "BART-base",
     "BART-large",
 ]
-OPEN_AI_MODELS = ["GPT-3", "GPT-3.5 SFT", "GPT-3.5 RLHF"]
+CHATCOMPLETION_API = True
+# TODO: Add assert for ["GPT-3", "GPT-3.5 SFT", "GPT-3.5 RLHF"] no longer supported by OAI
+OPEN_AI_MODELS = ["GPT-3", "GPT-3.5 SFT", "GPT-3.5 RLHF", "GPT-3.5 TRBO", "GPT-4", 'GPT-4 TP'] 
 # NOTE: For BERT-like and OAI models we run all at same time, for other models we load individually
             ###################### Select model type ###################
 CONDITIONAL_GEN_MODELS = ["UL2-20B-denoiser", "UL2-20B-gen", "Flan-UL2-20B"]
@@ -154,6 +156,25 @@ MODELS_PARAMS = {
         "is_instruction": True,
         "approx_num_weights": 175e9,
     },
+    "GPT-3.5 TRBO": {
+        "model_call_name": "gpt-3.5-turbo",
+        "cond_prefix": None,
+        "is_instruction": True,
+        "approx_num_weights": 175e9,
+    },
+    "GPT-4": {
+        "model_call_name": "gpt-4",
+        "cond_prefix": None,
+        "is_instruction": True,
+        "approx_num_weights": 175e10,
+    },
+    "GPT-4 TP": {
+        "model_call_name": "gpt-4-turbo-preview",
+        "cond_prefix": None,
+        "is_instruction": True,
+        "approx_num_weights": 175e10,
+    },
+    
 }
 ALL_MODELS = set(
     BERT_LIKE_MODELS + OPEN_AI_MODELS + CONDITIONAL_GEN_MODELS
@@ -170,16 +191,12 @@ assert (
 
 
 MAIN_PLOT = {
-    (0, 0): {"model": "BERT-base", "prompt": None},
-    (1, 0): {"model": "RoBERTa-base", "prompt": None},
-    (0, 1): {"model": "GPT-3", "prompt": "A"},
-    (1, 1): {"model": "GPT-3", "prompt": "B"},
-    (0, 2): {"model": "GPT-3.5 SFT", "prompt": "A"},
-    (1, 2): {"model": "GPT-3.5 SFT", "prompt": "B"},
-    (0, 3): {"model": "GPT-3.5 RLHF", "prompt": "A"},
-    (1, 3): {"model": "GPT-3.5 RLHF", "prompt": "B"},
-    (0, 4): {"model": "Flan-UL2-20B", "prompt": "A"},
-    (1, 4): {"model": "Flan-UL2-20B", "prompt": "B"},
+    (0): {"model": "BERT-base", "prompt": None},
+    (1): {"model": "RoBERTa-base", "prompt": None},
+    (2): {"model": "GPT-3.5 SFT", "prompt": "A"},
+    (3): {"model": "GPT-3.5 RLHF", "prompt": "A"},
+    (4): {"model": "GPT-4", "prompt": "A"},
+    (5): {"model": "GPT-4 TP", "prompt": "A"},
 }
 
 NO_INST_MODELS_FOR_APPD = {
@@ -198,31 +215,40 @@ INST_MODELS_FOR_APPD = {
     (2, 0): {"model": "GPT-3", "prompt": "A"},
     (3, 0): {"model": "GPT-3.5 SFT", "prompt": "A"},
     (4, 0): {"model": "GPT-3.5 RLHF", "prompt": "A"},
+    (5, 0): {"model": "GPT-3.5 TRBO", "prompt": "A"},
+    (6, 0): {"model": "GPT-4", "prompt": "A"},
+    (7, 0): {"model": "GPT-4 TP", "prompt": "A"},
     (0, 1): {"model": "UL2-20B-gen", "prompt": "B"},
     (1, 1): {"model": "Flan-UL2-20B", "prompt": "B"},
     (2, 1): {"model": "GPT-3", "prompt": "B"},
     (3, 1): {"model": "GPT-3.5 SFT", "prompt": "B"},
     (4, 1): {"model": "GPT-3.5 RLHF", "prompt": "B"},
+    (5, 1): {"model": "GPT-3.5 TRBO", "prompt": "B"},
+    (6, 1): {"model": "GPT-4", "prompt": "B"},
+    (7, 1): {"model": "GPT-4 TP", "prompt": "B"},    
     (0, 2): {"model": "UL2-20B-gen", "prompt": "C"},
     (1, 2): {"model": "Flan-UL2-20B", "prompt": "C"},
     (2, 2): {"model": "GPT-3", "prompt": "C"},
     (3, 2): {"model": "GPT-3.5 SFT", "prompt": "C"},
     (4, 2): {"model": "GPT-3.5 RLHF", "prompt": "C"},
+    (5, 2): {"model": "GPT-3.5 TRBO", "prompt": "C"},
+    (6, 2): {"model": "GPT-4", "prompt": "C"},
+    (7, 2): {"model": "GPT-4 TP", "prompt": "C"},
 }
 FOR_PAPER = True
 MODELS_TO_PLOT = {
     "main_plot": {
         "models": MAIN_PLOT,
-        "n_rows": 2,
-        "n_cols": 5,
+        "n_rows": 1,
+        "n_cols": 6,
         "dpi": 400,
-        "h": 7,
+        "h": 3.5,
         "w": 10,
         "max_xlabels": None,
     },
     "inst_for_appd": {
         "models": INST_MODELS_FOR_APPD.copy(),
-        "n_rows": 5, 
+        "n_rows": 8, 
         "n_cols": 3,
         "dpi": 200,
         "h": 22,
@@ -239,7 +265,7 @@ MODELS_TO_PLOT = {
         "max_xlabels": None,
     },
 }
-MODEL_TO_PLOT_NAME = "main_plot"
+MODEL_TO_PLOT_NAME = "inst_for_appd"
 
 
 def convert_to_file_save_name(model_name):
@@ -287,16 +313,16 @@ def _convert_filename_df_2_modelnames_df(
 INSTRUCTION_PROMPTS = {
     1: {
         "prompt": """In this sentence: '{sentence}', the missing gendered pronoun is""",
-        "mask_token": "_",
+        "mask_token": "<mask>",
         "name": "C",
     },
     2: {
         "prompt": """The gendered pronoun missing in this sentence: '{sentence}', is""",
-        "mask_token": "_",
+        "mask_token": "<mask>",
         "name": "B",
     },
     3: {
-        "prompt": """Instructions: Please carefully read the following passage and fill-in the gendered pronoun indicated by a <mask>.\nPassage: {sentence}\nAnswer:""",
+            "prompt": """Instructions: Please carefully read the following passage and fill-in the gendered pronoun indicated by a <mask>.\nPassage: {sentence}\nAnswer:""",
         "mask_token": "<mask>",
         "name": "A",
     },

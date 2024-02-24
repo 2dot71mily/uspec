@@ -49,6 +49,7 @@ def get_results(filename, indie_var_name):
     results = results.drop("Unnamed: 0", axis=1)
     return results
 
+
 def get_results_all_models(
     filename, indie_var_name, baseline_included=False, dir=INFERENCE_FULL_PATH
 ):
@@ -115,10 +116,9 @@ def process_and_plot_results_from_csvs(
 
         # plot spurious correlations
         axe = plot_spurious_correlations(axe, i, xs, ys, n_fit)
-    max_xlabels = 7 if indie_var_name == "place" else max_xlabels
+    max_xlabels = 8 if indie_var_name == "place" else max_xlabels
     axe.xaxis.set_major_locator(MaxNLocator(max_xlabels))
     axe.yaxis.set_major_locator(MaxNLocator(integer=True))
-
 
     # # Calc deltas (currently limited to f, m)
     delta_ys = all_ys["f"] - all_ys["m"]
@@ -145,9 +145,15 @@ def process_and_plot_results_from_csvs(
     # Calculate the standard error of the slope (se_slope)
     delta_se_slope = delta_s_e / np.sqrt(s_xx)
     linear_coeffs = {
-        "delta_slope": all_stats["f"]["slope"] - all_stats["m"]["slope"],
+        # As anticipated/noted in paper, increase of gender-neutral pronoun predictions by GPT-4
+        # warranted inclusion of gender-neutral pronoun probabilities in method 2
+        "delta_slope": (all_stats["f"]["slope"] + all_stats["n"]["slope"])
+        - all_stats["m"]["slope"],
         "avg_r2": np.mean(
-            [all_stats["f"]["r_value"] ** 2, all_stats["m"]["r_value"] ** 2]
+            [
+                all_stats["f"]["r_value"] ** 2 + all_stats["n"]["r_value"] ** 2,
+                all_stats["m"]["r_value"] ** 2,
+            ]
         ),
         "delta_se_slope": delta_se_slope,
     }
@@ -187,7 +193,7 @@ def plot_linear_coeffs(
     plt.figure(figsize=figsize)
     linear_coeffs_df[["delta_slope", "avg_r2"]].plot(
         kind="bar", color=["gray", "black"]
-    )  
+    )
     plt.title(title)
     plt.ylabel(y_label)
     plt.tight_layout()
@@ -212,28 +218,27 @@ def plot_linear_coeffs(
     delta_slope = linear_coeffs_df["delta_slope"].values
     y_label = "Delta Slope"
     plt.figure(figsize=figsize)
+    colors = [
+        "b",
+        "g",
+        "r",
+        "c",
+        "m",
+        "y",
+        "k",
+        "orange",
+        "b",
+        "g",
+        "r",
+        "c",
+        "m",
+        "y",
+        "k",
+    ][
+        : len(approx_model_logsizes)
+    ]  # TODO validate
     plt.scatter(
-        approx_model_logsizes,
-        delta_slope,
-        s=(avg_r2**2) * 5000,
-        alpha=0.5,
-        c=[
-            "b",
-            "g",
-            "r",
-            "c",
-            "m",
-            "y",
-            "k",
-            "orange",
-            "b",
-            "g",
-            "r",
-            "c",
-            # "m",
-            # "y",
-            # "k",
-        ],
+        approx_model_logsizes, delta_slope, s=(avg_r2**2) * 5000, alpha=0.5, c=colors
     )
     plt.xscale("log")
     plt.xlabel("Number of Parameters")
@@ -252,7 +257,7 @@ def plot_linear_coeffs(
                 f"{i}",  #:{model_name}
                 size=7,
                 alpha=0.75,
-            ) 
+            )
 
     file_path = os.path.join(
         dir, f"scatter_delta_linear_se_slope_{indie_var_name}_P{prompt_idx}"
@@ -270,7 +275,8 @@ def get_files_to_plot(model_name, indie_var_name, prompt_idx=None):
     if MODELS_PARAMS[model_name]["is_instruction"]:
         file_run_version = f"_testFalse_P{prompt_idx}"
         display_prompt_idx = PROMPT_2_NAME[prompt_idx] if FOR_PAPER else prompt_idx
-        title = f"{model_name} prmpt {display_prompt_idx}"
+        #TODO add back prompt_idx, now missing from appendix plots
+        title = f"{model_name}"  
     else:
         file_run_version = "_testFalse"
         title = model_name
